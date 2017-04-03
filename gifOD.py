@@ -3,13 +3,15 @@ import time
 import requests
 import urllib
 import telebot
+from dbhelper import DBHelper 
 from telebot import types
 import random
 
-TOKEN = '<TOKEN>'
+TOKEN = '343952190:AAGS1Oa3KLjVOxOr1oBv-tGqWh3V9o4vPp4'
 URL = 'https://api.telegram.org/bot{}/'.format(TOKEN)
+db = DBHelper()
 bot = telebot.TeleBot(TOKEN)
-GIF_KEY = '<KEY>'
+GIF_KEY = 'dc6zaTOxFJmzC'
 GIF_URL = 'http://api.giphy.com/v1/gifs/random?api_key='
 LAST_TEXT = ''
 
@@ -87,11 +89,11 @@ def ttt_intro(chat):
 def tic_tac_toe(updates, chat, chat_id, variants, LAST_TEXT, text):
 		ttt_intro(chat)
 		ttt_keyboard(chat_id)
-		last_text = 'gif'
-		text = 'gif'
+		text = ''
 		last_update_id = None
 		ai_choice = ''
-		while text == 'gif':
+		print('text after reset '+ text)
+		while not text == 'well' or not text == 'scissors' or not text == 'sheet':
 			ai_choice = random.choice(variants)
 			print('ai ' + ai_choice)
 			updates = get_updates(last_update_id)
@@ -99,10 +101,11 @@ def tic_tac_toe(updates, chat, chat_id, variants, LAST_TEXT, text):
 				last_update_id = get_last_update_id(updates)+1
 			for update in updates['result']:
 				text = update['message']['text']
-				print('text '+ text)
-				if last_text == text or text == ai_choice:
-					continue
-		print('FORWARD')
+				print('text before check '+ text)
+			if text == 'well' or text == 'scissors' or text == 'sheet':
+				break
+		db.add_item(text, chat)
+		print('text ' + text)
 		if ai_choice == 'sheet' and text == 'scissors':
 			typing_effect(15, ai_choice, chat)
 			typing_effect(15, 'Ты выиграл', chat)
@@ -126,10 +129,7 @@ def tic_tac_toe(updates, chat, chat_id, variants, LAST_TEXT, text):
 			typing_effect(15, ai_choice, chat)
 			typing_effect(15, 'Ты выиграл', chat)
 			typing_effect(15, 'Вот твоя награда', chat)
-			send_gif(GIF_URL, GIF_KEY, chat)	
-		else:
-			typing_effect(15, 'Сделай свой выбор', chat)
-	
+			send_gif(GIF_URL, GIF_KEY, chat)
 
 def handle_updates(updates):
 	for update in updates['result']:
@@ -137,13 +137,16 @@ def handle_updates(updates):
 		chat = update['message']['chat']['id']
 		chat_id = update['message']['chat']['id']
 		if text == 'gif':
+			db.add_item(text, chat)
 			dialog = random.choice(gif_dialog)
 			if dialog == 'tic-tac-toe':
+				db.add_item(text, chat)
 				tic_tac_toe(updates, chat, chat_id, variants, LAST_TEXT, text)
 			else:
 				typing_effect(15, dialog, chat)
 				send_gif(GIF_URL, GIF_KEY, chat)
-
+		elif text =='ttt':
+			tic_tac_toe(updates, chat, chat_id, variants, LAST_TEXT, text)
 #get only last chat message instead of all
 def get_last_chat_id_and_text(updates):
 	num_updates = len(updates['result'])
@@ -161,14 +164,14 @@ def send_message(text, chat_id, reply_markup=None):
 	get_url(url)
 
 def main():
-	last_update_id = None
+	db.setup()
+	last_update_id = 823337300
 	while True:
 		updates = get_updates(last_update_id)
 		if len (updates['result'])>0:
 			last_update_id = get_last_update_id(updates)+1
 			print('last update id' + str(last_update_id))
 			handle_updates(updates)
-
 		time.sleep(0.5)
 
 if __name__ == '__main__':
